@@ -1,0 +1,88 @@
+---
+title: "Practical Machine Learning Project"
+author: "Martin Gaviria"
+date: "8/12/2019"
+output: html_document
+---
+
+## Summary
+The main objective of this project is to predict if an individual is
+correctly doing a weight exercise based on accelerometer data. Two methods
+are used: classification tree and random forest. Using a k-fold (5)
+cross-validation technique, the random forest method is chosen based on its
+in-sample accuracy (99%). 
+
+
+## Loading the data
+```{r, eval=FALSE, results="hide"}
+url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(url, "training.csv", method="curl")
+url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url, "testing.csv", method="curl")
+
+train <- read.csv("training.csv")
+test <- read.csv("testing.csv")
+
+```
+
+```{r,  results="hide"}
+
+library(caret); library(ggplot2); library(rattle)
+train <- read.csv("training.csv")
+test <- read.csv("testing.csv")
+
+```
+
+## Cleaning the Data
+Then, the data is cleaned by removing any variables that have more than
+50% NAs or " ". 
+
+``` {r clean_data}
+vect <- which(colSums(is.na(train) | train == "") > 0.5*dim(train)[1])
+train2 <- train[,-vect]
+train2 <- train2[,-(1:7)]
+
+vect <- which(colSums(is.na(test) | test == "") > 0.5*dim(test)[1])
+test2 <- test[,-vect]
+test2 <- test2[,-(1:7)]
+```
+
+This leaves 52 variables to use as predictors for classe.
+
+## Cross-Validation
+For cross-validating, a k-fold method with 5 partitions is chosen.
+``` {r cross_validation}
+trControl <- trainControl(method = "cv", number=5)
+```
+
+## Classification Tree
+The first model tried is a classification tree.
+``` {r classification_tree}
+model_ct <- train(classe ~ ., data=train2, method="rpart", trControl=trControl)
+fancyRpartPlot(model_ct$finalModel)
+confusionMatrix(train2$classe, predict(model_ct, data=train2))$overall[1]
+```
+  
+The accuracy is only of around 50%, which is quite low.
+
+
+## Random Forest
+The next model tried is a Random Forest.
+``` {r random_forest}
+model_rf <- train(classe~., data=train2, method="rf", trControl=trControl,
+                  verbose=FALSE, ntree = 10)
+confusionMatrix(train2$classe, predict(model_rf, data=train2))$overall[1]
+plot(model_rf, main = "Accuracy vs. Number of Predictors")
+```
+  
+This model has a 99.9% accuracy, so it is chosen.
+
+## Conclusion
+The Random Forest model is chosen for in in-sample accuracy. One can expect that
+the out of sample accuracy will be relatively lower, around 90-95%.  
+``` {r prediction}
+predict(model_rf, test2)
+```
+
+
+
